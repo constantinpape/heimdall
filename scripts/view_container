@@ -8,7 +8,6 @@ def tobool(inp):
     return inp.lower() in ('y', '1', 'ok', 't')
 
 
-# TODO add additional arguments for exclude / include datasets
 parser = argparse.ArgumentParser(description='Display datasets in h5 or n5/zarr container.')
 parser.add_argument('path', type=str, help='path to container')
 parser.add_argument('--ndim', type=int, default=3,

@@ -5,7 +5,6 @@ __version__ = runpy.run_path('heimdall/version.py')['__version__']
 setup(name='heimdall',
       version=__version__,
       author='Constantin Pape',
-      url='',
-      license='MIT')
-      # TODO
-      # scripts='scrips/view_contanier')
+      url='https://github.com/constantinpape/heimdall',
+      license='MIT',
+      scripts='scrips/view_contanier')
