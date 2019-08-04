@@ -87,7 +87,7 @@ with h5py.File(path, 'r') as f:
 ### Interact with napari
 
 `Heimdall` can be combined with `napari` in order to make use of additional functionality.
-For this, you use `view` with `return_viewer=True` and wrap the function call into `napari.gui_qt()`.
+For this use `view` with `return_viewer=True` and wrap the function call into `napari.gui_qt()`.
 
 ```python
 import numpy as np
