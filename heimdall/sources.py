@@ -117,18 +117,31 @@ class Source:
         return self._data.shape[1:] if self.multichannel else self._data.shape
 
     @property
+    def dtype(self):
+        return self._data.dtype
+
+    @property
     def multichannel(self):
         return self._multichannel
 
-    # TODO add setter
     @property
     def layer_type(self):
         return self._layer_type
 
-    # TODO add setter
+    @layer_type.setter
+    def layer_type(self, layer_type):
+        if layer_type not in self.layer_types:
+            raise ValueError("Invalid layer type %s, only %s supported" % (layer_type,
+                                                                           str(self.layer_types)))
+        self._layer_type = layer_type
+
     @property
     def name(self):
         return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
 
 
 class NumpySource(Source):
@@ -171,15 +184,25 @@ class BigDataSource(Source):
         self._min_val = self.infer_min(data.dtype) if min_val is None else min_val
         self._max_val = self.infer_max(data.dtype) if max_val is None else max_val
 
-    # TODO setter
     @property
     def min_val(self):
         return self._min_val
 
-    # TODO setter
+    @min_val.setter
+    def min_val(self, min_val):
+        if np.iinfo(self.dtype).min < min_val < np.iinfo(self.dtype).max:
+            raise ValueError("Invalid min value")
+        self._min_val = min_val
+
     @property
     def max_val(self):
         return self._max_val
+
+    @max_val.setter
+    def max_val(self, max_val):
+        if np.iinfo(self.dtype).min < max_val < np.iinfo(self.dtype).max:
+            raise ValueError("Invalid max value")
+        self._max_val = max_val
 
 
 class ZarrSource(BigDataSource):
@@ -237,15 +260,23 @@ class PyramidSource(BigDataSource):
     def group(self):
         return self._group
 
-    # TODO setter, check that smaller self.max_scale
     @property
     def n_scales(self):
         return self._n_scales
 
-    # TODO setter
+    @n_scales.setter
+    def n_scales(self, n_scales):
+        if n_scales > self.max_n_scales:
+            raise ValueError("Invalid number of scales")
+        self._n_scales = n_scales
+
     @property
     def n_threads(self):
         return self._n_threads
+
+    @n_threads.setter
+    def n_threads(self, n_threads):
+        self._n_threads = n_threads
 
     def get_level(self, level):
         """ Load the dataset at given level
