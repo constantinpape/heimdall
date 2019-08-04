@@ -21,7 +21,7 @@ def view(*sources, return_viewer=False):
             (default: False)
     """
     viewer_sources = [to_source(source) for source in sources]
-    reference_shape = sources[0].shape
+    reference_shape = viewer_sources[0].shape
 
     if return_viewer:
         viewer = napari.Viewer(title='Heimdall')

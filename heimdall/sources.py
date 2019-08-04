@@ -4,6 +4,47 @@ from z5py.dataset import Dataset as Z5Dataset
 from z5py.group import Group as Z5Group
 
 
+def check_consecutive(scales):
+    scales = sorted(scales)
+    is_consecutive = (scales[0] == 0) and (scales == list(range(scales[0], scales[-1] + 1)))
+    return is_consecutive
+
+
+def infer_pyramid_format(group):
+    """ Infer pyramid format from group object.
+
+    Checks for bdv multiscale format (hdf5) or format used by paintera (n5).
+    Returns None if no format could be inferred.
+    """
+    keys = list(group.keys())
+
+    # check for n5 multiscale format
+    if isinstance(group, Z5Group):
+        try:
+            scales = [int(scale[1:]) for scale in keys]
+            is_consecutive = check_consecutive(scales)
+            if is_consecutive:
+                return 'n5'
+            else:
+                return None
+        except Exception:
+            return None
+
+    # check for bdv multiscale format
+    elif isinstance(group, h5py.Group):
+        try:
+            scales = [int(scale) for scale in keys]
+            is_consecutive = check_consecutive(scales)
+            if is_consecutive:
+                return 'bdv'
+            else:
+                return None
+        except Exception:
+            return None
+
+    return None
+
+
 def to_source(data, **kwargs):
     """ Convert the input data to a heimdall.Source.
 
@@ -19,15 +60,15 @@ def to_source(data, **kwargs):
     # source from hdf5-based source
     elif isinstance(data, h5py.Dataset):
         return HDF5Source(data, **kwargs)
-    # TODO implement BDVSource / H5 pyramid source
-    elif isinstance(data, h5py.Group):
-        raise NotImplementedError
     # sources from n5/zarr based source
     elif isinstance(data, Z5Dataset):
         return ZarrSource(data, **kwargs)
-    # TODO implement n5/zarr pyramid source
-    elif isinstance(data, Z5Group):
-        raise NotImplementedError
+    # sources from n5/zarr or hdf5 (bdv) image pyramid
+    elif isinstance(data, Z5Group) or isinstance(data, h5py.Group):
+        pyramid_format = infer_pyramid_format(data)
+        if pyramid_format is None:
+            raise ValueError("Group does not have one of the supported pyramid formats")
+        return PyramidSource(data, pyramid_format=pyramid_format, **kwargs)
     else:
         raise ValueError("No source for %s available" % type(data))
 
@@ -100,7 +141,7 @@ class NumpySource(Source):
 
 
 class BigDataSource(Source):
-    """ Base class for hdf5 or n5/zarr source.
+    """ Base class for hdf5, n5/zarr and pyramid source.
     """
 
     @staticmethod
@@ -159,9 +200,71 @@ class HDF5Source(BigDataSource):
         super().__init__(data, **kwargs)
 
 
-# TODO implement pyramid sources
-# class BDVSource(Source):
-#     pass
+class PyramidSource(BigDataSource):
+    """ Source for pyramid dataset.
+
+    For now, we support the bdv mipmap and the n5 mipmap format used by paintera.
+    """
+    def __init__(self, group, pyramid_format=None,
+                 n_scales=None, n_threads=1, **kwargs):
+        expected_format = infer_pyramid_format(group)
+        if pyramid_format is None:
+            if expected_format is None:
+                raise ValueError("Invalid pyramid source")
+        else:
+            if expected_format != pyramid_format:
+                raise ValueError("Expected format %s, got %s" % (expected_format,
+                                                                 pyramid_format))
+        self._format = expected_format
+        self._group = group
+        self._n_threads = n_threads
+        # number of scales can be inferred from data or given
+        self.max_n_scales = len(group)
+        if n_scales is None:
+            self._n_scales = self.max_n_scales
+        else:
+            if n_scales > self.max_n_scales:
+                raise ValueError
+            self._n_scales = n_scales
+
+        super().__init__(self.get_level(0), **kwargs)
+
+    @property
+    def format(self):
+        return self._format
+
+    @property
+    def group(self):
+        return self._group
+
+    # TODO setter, check that smaller self.max_scale
+    @property
+    def n_scales(self):
+        return self._n_scales
+
+    # TODO setter
+    @property
+    def n_threads(self):
+        return self._n_threads
+
+    def get_level(self, level):
+        """ Load the dataset at given level
+        """
+        ds = self.group['s%i' % level] if self.format == 'n5' else\
+            self.group['%i/cells' % level]
+        ds.n_threads = self.n_threads
+        return ds
+
+    def get_pyramid(self):
+        """ Load the pyramid in format expected by napari.add_pyramid
+        """
+        pyramid = [self.get_level(scale) for scale in range(self.n_scales)]
+        # for n5, we load the last pyramid level into memory,
+        # because it cannot be passed to np.asarray, which is done by napari
+        # see also https://github.com/constantinpape/z5/issues/120
+        if self.format == 'n5':
+            pyramid[-1] = pyramid[-1][:]
+        return pyramid
 
 
 # source wrappers:
