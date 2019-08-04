@@ -1,0 +1,12 @@
+#!/usr/bin/python
+
+import argparse
+from heimdall import view_container
+
+
+# TODO add additional arguments for exclude / include datasets
+parser = argparse.ArgumentParser(description='Display datasets in h5 or n5/zarr container.')
+parser.add_argument('path', type=str, help='path to container')
+
+args = parser.parse_args()
+view_container(args.path)
