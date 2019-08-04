@@ -1,6 +1,7 @@
 import numpy as np
 import h5py
-import z5py
+from z5py.dataset import Dataset as Z5Dataset
+from z5py.group import Group as Z5Group
 
 
 def to_source(data, **kwargs):
@@ -22,16 +23,19 @@ def to_source(data, **kwargs):
     elif isinstance(data, h5py.Group):
         raise NotImplementedError
     # sources from n5/zarr based source
-    elif isinstance(data, z5py.Dataset):
+    elif isinstance(data, Z5Dataset):
         return ZarrSource(data, **kwargs)
     # TODO implement n5/zarr pyramid source
-    elif isinstance(data, z5py.Group):
+    elif isinstance(data, Z5Group):
         raise NotImplementedError
     else:
         raise ValueError("No source for %s available" % type(data))
 
 
 class Source:
+    """ Base class for data sources.
+    """
+
     layer_types = ('raw', 'labels')
     default_layer_types = {'uint8': 'raw',
                            'uint16': 'raw',
@@ -70,12 +74,11 @@ class Source:
 
     @property
     def ndim(self):
-        return self._data.ndim -1 if self.multichannel else self._data.ndim
+        return self._data.ndim - 1 if self.multichannel else self._data.ndim
 
-    # TODO slice away the channel axis if we have a multi-channel source
     @property
     def shape(self):
-        return self._data.shape
+        return self._data.shape[1:] if self.multichannel else self._data.shape
 
     @property
     def multichannel(self):
@@ -92,25 +95,85 @@ class Source:
         return self._name
 
 
-# TODO pyramid sources ???
-
 class NumpySource(Source):
-    pass
+    """ Source from numpy array.
+    """
+    def __init__(self, data, **kwargs):
+        if not isinstance(data, np.ndarray):
+            raise ValueError("NumpySource expecsts a numpy array, not %s" % type(data))
+        super().__init__(data, **kwargs)
 
 
-class ZarrSource(Source):
-    pass
+class BigDataSource(Source):
+    """ Base class for hdf5 or n5/zarr source.
+    """
+
+    @staticmethod
+    def infer_min(dtype):
+        if np.dtype(dtype) in (np.dtype('float32'), np.dtype('float64')):
+            return 0.
+        elif np.dtype(dtype) in (np.dtype('uint8'), np.dtype('uint16'),
+                                 np.dtype('int8'), np.dtype('int16')):
+            return np.iinfo(dtype).min
+        # min-max for label dtypes is not relevant
+        else:
+            return None
+
+    @staticmethod
+    def infer_max(dtype):
+        if np.dtype(dtype) in (np.dtype('float32'), np.dtype('float64')):
+            return 1.
+        elif np.dtype(dtype) in (np.dtype('uint8'), np.dtype('uint16'),
+                                 np.dtype('int8'), np.dtype('int16')):
+            return np.iinfo(dtype).max
+        # min-max for label dtypes is not relevant
+        else:
+            return None
+
+    def __init__(self, data, min_val=None, max_val=None, **kwargs):
+        super().__init__(data, **kwargs)
+        self._min_val = self.infer_min(data.dtype) if min_val is None else min_val
+        self._max_val = self.infer_max(data.dtype) if max_val is None else max_val
+
+    # TODO setter
+    @property
+    def min_val(self):
+        return self._min_val
+
+    # TODO setter
+    @property
+    def max_val(self):
+        return self._max_val
 
 
-class HDF5Source(Source):
-    pass
+class ZarrSource(BigDataSource):
+    """ Source from zarr dataset.
+    """
+    def __init__(self, data, **kwargs):
+        if not isinstance(data, Z5Dataset):
+            raise ValueError("ZarrSource expecsts a z5 dataset, not %s" % type(data))
+        super().__init__(data, **kwargs)
 
 
-class BDVSource(Source):
-    pass
+class HDF5Source(BigDataSource):
+    """ Source from hdf5 dataset.
+    """
+    def __init__(self, data, **kwargs):
+        if not isinstance(data, h5py.Dataset):
+            raise ValueError("HDF5Source expects a h5py dataset, not %s" % type(data))
+        super().__init__(data, **kwargs)
 
 
-# source wrappers to resize / apply affines on the fly
+# TODO implement pyramid sources
+# class BDVSource(Source):
+#     pass
+
+
+# source wrappers:
+# TODO
+# - resize on the fly
+# - apply affines on the fly
+# - data caching
 
 class SourceWrapper(Source):
     pass
@@ -121,4 +184,8 @@ class ResizeWrapper(SourceWrapper):
 
 
 class AffineWrapper(SourceWrapper):
+    pass
+
+
+class CacheWrapper(SourceWrapper):
     pass

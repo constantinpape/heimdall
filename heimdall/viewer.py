@@ -3,6 +3,7 @@ import napari
 
 from .sources import to_source, NumpySource
 from .util import add_source_to_viewer, add_keybindings
+from .util import open_file, load_sources_from_file
 
 
 def view(*sources):
@@ -60,8 +61,26 @@ def simple_view(data, labels=None, layer_types=None):
     view(*sources)
 
 
-# TODO
-def view_container(path, exclude_names=None, include_names=None):
-    """ Display all contents of hdf5 or n5/zarr file.
+def view_container(path, ndim=3,
+                   exclude_names=None, include_names=None,
+                   load_into_memory=False, n_threads=1):
+    """ Display contents of hdf5 or n5/zarr file.
+
+    Arguments:
+        path [str]: path to the file
+        ndim [int]: expected number of dimensions (default: 3)
+        exclude_names [listlike]: will not load these names.
+            Not compatible with include_names (default: None)
+        include_names [listlike]: will ONLY load these names.
+            Not compatible with exclude_names (default: None).
+        load_into_memory [bool]: whether to load data into memory (default: False).
+        n_threads [n_threads]: number of threads used by z5py (default: 1)
     """
-    raise NotImplementedError
+    assert not ((exclude_names is not None) and (include_names is not None))
+    with open_file(path, mode='r') as f:
+        sources = load_sources_from_file(f, reference_ndim=ndim,
+                                         exclude_names=exclude_names,
+                                         include_names=include_names,
+                                         load_into_memory=load_into_memory,
+                                         n_threads=n_threads)
+        view(*sources)
