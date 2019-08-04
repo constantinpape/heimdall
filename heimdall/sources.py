@@ -56,17 +56,11 @@ class Source:
         else:
             return self.default_layer_types[str(dtype)]
 
-    # TODO
-    @staticmethod
-    def infer_multichannel(shape, layer_type):
-        return False
-
-    def __init__(self, data, layer_type=None, name=None, multichannel=None):
+    def __init__(self, data, layer_type=None, name=None, multichannel=False):
         self._data = data
         self._layer_type = self.to_layer_type(layer_type, data.dtype)
         self._name = name
-        self._multichannel = self.infer_multichannel(data.shape,
-                                                     self.layer_type) if multichannel is None else multichannel
+        self._multichannel = multichannel
 
     @property
     def data(self):
@@ -76,6 +70,7 @@ class Source:
     def ndim(self):
         return self._data.ndim - 1 if self.multichannel else self._data.ndim
 
+    # maybe we should also support channel dim last, but I don't know how napari deals with this
     @property
     def shape(self):
         return self._data.shape[1:] if self.multichannel else self._data.shape
