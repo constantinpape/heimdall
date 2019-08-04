@@ -6,17 +6,35 @@ from .util import add_source_to_viewer, add_keybindings
 from .util import open_file, load_sources_from_file
 
 
-def view(*sources):
+def view(*sources, return_viewer=False):
     """ Open viewer for multiple sources.
+
+    Arguments:
+        sources [args]: sources to view, must be instances of heimdall.sources.Source
+        return_viewer [bool]: whether to return the napari viewer object.
+            If True, this function must be wrapped into napari.gui_qt like so:
+            ```
+            with napari.gui_qt():
+                viewer = view(*sources, return_viewer=True)
+                ...
+            ```
+            (default: False)
     """
     viewer_sources = [to_source(source) for source in sources]
     reference_shape = sources[0].shape
 
-    with napari.gui_qt():
+    if return_viewer:
         viewer = napari.Viewer(title='Heimdall')
         for source in viewer_sources:
             add_source_to_viewer(viewer, source, reference_shape)
         add_keybindings(viewer)
+        return viewer
+    else:
+        with napari.gui_qt():
+            viewer = napari.Viewer(title='Heimdall')
+            for source in viewer_sources:
+                add_source_to_viewer(viewer, source, reference_shape)
+            add_keybindings(viewer)
 
 
 def simple_view(data, labels=None, layer_types=None):
