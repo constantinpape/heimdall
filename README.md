@@ -106,3 +106,5 @@ with napari.gui_qt():
     sizes = np.array([10, 25])
     viewer.add_points(points, size=size)
 ```
+
+See `examples/` for additional usage examples.

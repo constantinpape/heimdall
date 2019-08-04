@@ -296,25 +296,3 @@ class PyramidSource(BigDataSource):
         if self.format == 'n5':
             pyramid[-1] = pyramid[-1][:]
         return pyramid
-
-
-# source wrappers:
-# TODO
-# - resize on the fly
-# - apply affines on the fly
-# - data caching
-
-class SourceWrapper(Source):
-    pass
-
-
-class ResizeWrapper(SourceWrapper):
-    pass
-
-
-class AffineWrapper(SourceWrapper):
-    pass
-
-
-class CacheWrapper(SourceWrapper):
-    pass

@@ -1,4 +1,5 @@
 from ..sources import NumpySource, BigDataSource, PyramidSource
+from ..source_wrappers import SourceWrapper
 
 
 def add_numpy_source(viewer, source):
@@ -46,7 +47,8 @@ def add_source_to_viewer(viewer, source, reference_shape):
     if isinstance(source, NumpySource):
         add_numpy_source(viewer, source)
 
-    # pyramid needs to be checked before BigDataSource, because the former inherits from the latter
+    # pyramid needs to be checked before BigDataSource,
+    # because the former inherits from the latter
     elif isinstance(source, PyramidSource):
         add_pyramid_source(viewer, source)
 
@@ -54,8 +56,11 @@ def add_source_to_viewer(viewer, source, reference_shape):
     elif isinstance(source, BigDataSource):
         add_big_data_source(viewer, source)
 
-    # other sources
+    # TODO source wrappers are a bit more complicated...
+    elif isinstance(source, SourceWrapper):
+        pass
+
     else:
-        raise ValueError
+        raise ValueError("Unsupported source %s" % type(source))
 
     # layer specific key-bindings
