@@ -37,7 +37,7 @@ def view(*sources, return_viewer=False):
             add_keybindings(viewer)
 
 
-def simple_view(data, labels=None, layer_types=None):
+def view_arrays(data, labels=None, layer_types=None):
     """ Simple viewer for in-memory data.
 
     This is a legacy function compatible with

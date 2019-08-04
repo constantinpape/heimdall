@@ -32,17 +32,17 @@ Coming soon ;).
 In particular, it supports visualizing data from `numpy` arrays and `hdf5` as well as `zarr/n5` datasets.
 It also supports some pyramid specifications for these file formats.
 
-The easisest way of use is through the convenience functions `simple_view`, which displays a list of `numpy` arrays and `view_container`, which displays the content of a `hdf5` or `zarr/n5` file:
+The easisest way of use is through the convenience functions `view_arrays`, which displays a list of `numpy` arrays and `view_container`, which displays the content of a `hdf5` or `zarr/n5` file:
 
 ```python
 import numpy as np
-from heimdall import simple_view
+from heimdall import view_arrays
 
 shape = (128,) * 3
 x = np.random.rand(*shape)
 y = np.random.randint(0, 1000, size=shape, dtype='uint32')
 # Display x as raw data and y as labels (automatically inferred from the dtypes).
-simple_view([x, y])
+view_arrays([x, y])
 ```
 
 ```python
@@ -53,7 +53,7 @@ path = '/path/to/file.h5'  # or .n5/.zarr
 # To only show selected datasets, pass their names as list `include_names`.
 view_container(path, ndim=3)
 ```
-`view_container` is also installed as script.
+`view_container` is also installed as command-line script.
 
 In order to use `heimdall` in a more flexible manner, use the function `view`.
 It can be called with `numpy` arrays as well as `z5py/h5py` datasets or groups (for pyramids).

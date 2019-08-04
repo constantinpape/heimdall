@@ -1,5 +1,5 @@
 import z5py
-from heimdall import simple_view
+from heimdall import view_arrays
 
 
 def example_2d(z=0):
@@ -13,7 +13,7 @@ def example_2d(z=0):
         ds.n_threads = 8
         seg = ds[z]
 
-    simple_view([raw, seg])
+    view_arrays([raw, seg])
 
 
 def example_3d():
@@ -27,7 +27,7 @@ def example_3d():
         ds.n_threads = 8
         seg = ds[:]
 
-    simple_view([raw, seg])
+    view_arrays([raw, seg])
 
 
 if __name__ == '__main__':
