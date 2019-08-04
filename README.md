@@ -55,8 +55,8 @@ view_container(path, ndim=3)
 ```
 `view_container` is also installed as script.
 
-In order to use `heimdall` in a more flexible manner, you need to use the function `view`.
-It can be called with `numpy` arrays, `z5py/h5py` datasets or groups (for pyramids).
+In order to use `heimdall` in a more flexible manner, use the function `view`.
+It can be called with `numpy` arrays as well as `z5py/h5py` datasets or groups (for pyramids).
 It also supports [`heimdall.sources`](ttps://github.com/constantinpape/heimdall/blob/master/heimdall/sources.py), which allow to customize the viewer further.
 
 ```python
