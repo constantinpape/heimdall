@@ -1,7 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import argparse
-from heimdall import view_container
+from .. import view_container
 
 
 def tobool(inp):
@@ -21,7 +21,13 @@ parser.add_argument('--load_into_memory', type=tobool, default='n',
 parser.add_argument('--n_threads', type=int, default=1,
                     help='number of threads used by z5py')
 
-args = parser.parse_args()
-view_container(args.path, args.ndim,
-               args.exclude_names, args.include_names,
-               args.load_into_memory, args.n_threads)
+
+def main():
+    args = parser.parse_args()
+    view_container(args.path, args.ndim,
+                   args.exclude_names, args.include_names,
+                   args.load_into_memory, args.n_threads)
+
+
+if __name__ == '__main__':
+    main()
