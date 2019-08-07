@@ -2,9 +2,9 @@ import numpy as np
 import elf.io
 
 
-def check_consecutive(scales):
+def check_consecutive(scales, expected_formatstart_id=0):
     scales = sorted(scales)
-    is_consecutive = (scales[0] == 0) and (scales == list(range(scales[0], scales[-1] + 1)))
+    is_consecutive = (scales[0] == expected_start_id) and (scales == list(range(scales[0], scales[-1] + 1)))
     return is_consecutive
 
 
@@ -39,6 +39,20 @@ def infer_pyramid_format(group):
                 return None
         except Exception:
             return None
+
+    # check for knossos multiscale format
+    elif elf.io.is_knossos(group) and elf.io.is_group():
+        try:
+            # all names are prefixed with 'mag'
+            scales = [int(scale[3:]) for scale in scales]
+            is_consecutive(scales, 1)
+            if is_consecutive:
+                return 'knossos'
+            else:
+                return None
+        except Exception:
+            return None
+        return 'knossos'
 
     return None
 
@@ -220,11 +234,22 @@ class HDF5Source(BigDataSource):
         super().__init__(data, **kwargs)
 
 
+class KnossosSource(BigDataSource):
+    """ Source from Knossos dataset.
+    """
+    def __init__(self, data, **kwargs):
+        if not elf.io.is_knossos(data) and elf.io.is_dataset(data):
+            raise ValueError("KnossosSource expects a knossos dataset, not %s" % type(data))
+        super().__init__(data, **kwargs)
+
+
 class PyramidSource(BigDataSource):
     """ Source for pyramid dataset.
 
     For now, we support the bdv mipmap and the n5 mipmap format used by paintera.
     """
+    supported_formats = ('n5', 'knossos', 'bdv')
+
     def __init__(self, group, pyramid_format=None,
                  n_scales=None, n_threads=1, **kwargs):
         expected_format = infer_pyramid_format(group)
@@ -278,8 +303,12 @@ class PyramidSource(BigDataSource):
     def get_level(self, level):
         """ Load the dataset at given level
         """
-        ds = self.group['s%i' % level] if self.format == 'n5' else\
-            self.group['%i/cells' % level]
+        if self.format == 'n5':
+            ds = self.group['s%i' % level]
+        elif self.format == 'bdv':
+            ds = self.group['%i/cells' % level]
+        elif self.format == 'knossos':
+            ds = self.group['mag%i' % (level + 1)]
         ds.n_threads = self.n_threads
         return ds
 
@@ -287,9 +316,8 @@ class PyramidSource(BigDataSource):
         """ Load the pyramid in format expected by napari.add_pyramid
         """
         pyramid = [self.get_level(scale) for scale in range(self.n_scales)]
-        # for n5, we load the last pyramid level into memory,
-        # because it cannot be passed to np.asarray, which is done by napari
-        # see also https://github.com/constantinpape/z5/issues/120
-        if self.format == 'n5':
-            pyramid[-1] = pyramid[-1][:]
+        # we load the last pyramid level into memory,
+        # because it cannot be passed to np.asarray for z5py and knossos
+        # (which is done by napar)
+        pyramid[-1] = pyramid[-1][:]
         return pyramid
