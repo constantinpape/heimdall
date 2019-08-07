@@ -1,22 +1,6 @@
 import os
-import h5py
-import z5py
-from z5py.dataset import Dataset as Z5Dataset
-from z5py.group import Group as Z5Group
+from elf.io import is_dataset, is_group, is_h5py, is_z5py
 from ..sources import to_source, infer_pyramid_format
-
-H5_EXTENSIONS = ('.h5', '.hdf', '.hdf5')
-ZARR_EXTENSIONS = ('.zr', '.zarr', '.n5')
-
-
-def open_file(path, mode='a'):
-    ext = os.path.splitext(path)[1]
-    if ext.lower() in H5_EXTENSIONS:
-        return h5py.File(path, mode=mode)
-    elif ext.lower() in ZARR_EXTENSIONS:
-        return z5py.File(path, mode=mode)
-    else:
-        raise RuntimeError("Could not infer file type from extension %s" % ext)
 
 
 def is_pyramid_ds(name, node):
@@ -29,9 +13,9 @@ def is_pyramid_ds(name, node):
             return False
 
     name = os.path.split(name)[-1]
-    if isinstance(node, h5py.Dataset) and name == 'cells':
+    if is_h5py(node) and name == 'cells':
         return True
-    if isinstance(node, Z5Dataset) and name.startswith('s') and isint(name[1:]):
+    if is_z5py(node) and name.startswith('s') and isint(name[1:]):
         return True
     return False
 
@@ -43,7 +27,7 @@ def load_sources_from_file(f, reference_ndim,
 
     def visitor(name, node):
 
-        if isinstance(node, h5py.Dataset) or isinstance(node, Z5Dataset):
+        if is_dataset(node):
             # check if this is in the exclude_names
             if exclude_names is not None:
                 if name in exclude_names:
@@ -56,7 +40,7 @@ def load_sources_from_file(f, reference_ndim,
 
             # check if this is a dataset of a pyramid group
             # and don't load if it is
-            if is_pyramid_ds(node, name):
+            if is_pyramid_ds(name, node):
                 return
 
             # set the number of threads (only has an effect for z5py datasets)
@@ -75,7 +59,7 @@ def load_sources_from_file(f, reference_ndim,
 
             sources.append(to_source(node, multichannel=multichannel))
 
-        elif isinstance(node, h5py.Group) or isinstance(node, Z5Group):
+        elif is_group(node):
             pyramid_format = infer_pyramid_format(node)
             if pyramid_format is not None:
                 sources.append(to_source(node, pyramid_format=pyramid_format,

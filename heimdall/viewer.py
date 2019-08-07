@@ -1,9 +1,10 @@
 import numpy as np
 import napari
+from elf.io import open_file
 
 from .sources import to_source, NumpySource
 from .util import add_source_to_viewer, add_keybindings
-from .util import open_file, load_sources_from_file
+from .util import load_sources_from_file
 
 
 def view(*sources, return_viewer=False):

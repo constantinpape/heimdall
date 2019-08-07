@@ -17,9 +17,16 @@ After cloning this repository, you can install `heimdall` via
 python setup.py install
 ```
 It requires the following dependencies:
-- `h5py`
 - `napari`
+- [`elf`](https://github.com/constantinpape/elf) (will be available via pip and conda soon)
+
+Optionally dependencies for viewing big data:
+- `h5py`
 - `z5py`
+
+### Via pip
+
+Coming soon ;).
 
 ### Via conda
 

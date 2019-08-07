@@ -1,7 +1,5 @@
 import numpy as np
-import h5py
-from z5py.dataset import Dataset as Z5Dataset
-from z5py.group import Group as Z5Group
+import elf.io
 
 
 def check_consecutive(scales):
@@ -19,7 +17,7 @@ def infer_pyramid_format(group):
     keys = list(group.keys())
 
     # check for n5 multiscale format
-    if isinstance(group, Z5Group):
+    if elf.io.is_z5py(group) and elf.io.is_group(group):
         try:
             scales = [int(scale[1:]) for scale in keys]
             is_consecutive = check_consecutive(scales)
@@ -31,7 +29,7 @@ def infer_pyramid_format(group):
             return None
 
     # check for bdv multiscale format
-    elif isinstance(group, h5py.Group):
+    elif elf.io.is_h5py(group) and elf.io.is_group(group):
         try:
             scales = [int(scale) for scale in keys]
             is_consecutive = check_consecutive(scales)
@@ -57,14 +55,11 @@ def to_source(data, **kwargs):
     # source from in memory data
     elif isinstance(data, np.ndarray):
         return NumpySource(data, **kwargs)
-    # source from hdf5-based source
-    elif isinstance(data, h5py.Dataset):
-        return HDF5Source(data, **kwargs)
-    # sources from n5/zarr based source
-    elif isinstance(data, Z5Dataset):
-        return ZarrSource(data, **kwargs)
+    # source from dataset
+    elif elf.io.is_dataset(data):
+        return BigDataSource(data, **kwargs)
     # sources from n5/zarr or hdf5 (bdv) image pyramid
-    elif isinstance(data, Z5Group) or isinstance(data, h5py.Group):
+    elif elf.io.is_group(data):
         pyramid_format = infer_pyramid_format(data)
         if pyramid_format is None:
             raise ValueError("Group does not have one of the supported pyramid formats")
@@ -154,7 +149,9 @@ class NumpySource(Source):
 
 
 class BigDataSource(Source):
-    """ Base class for hdf5, n5/zarr and pyramid source.
+    """ Source wrapping an out-of-core dataset (e.g. h5py or z5py).
+
+    Also base class for hdf5, n5/zarr and pyramid source.
     """
 
     @staticmethod
@@ -209,7 +206,7 @@ class ZarrSource(BigDataSource):
     """ Source from zarr dataset.
     """
     def __init__(self, data, **kwargs):
-        if not isinstance(data, Z5Dataset):
+        if not elf.io.is_z5py(data) and elf.io.is_dataset(data):
             raise ValueError("ZarrSource expecsts a z5 dataset, not %s" % type(data))
         super().__init__(data, **kwargs)
 
@@ -218,7 +215,7 @@ class HDF5Source(BigDataSource):
     """ Source from hdf5 dataset.
     """
     def __init__(self, data, **kwargs):
-        if not isinstance(data, h5py.Dataset):
+        if not elf.io.is_h5py(data) and elf.io.is_dataset(data):
             raise ValueError("HDF5Source expects a h5py dataset, not %s" % type(data))
         super().__init__(data, **kwargs)
 
