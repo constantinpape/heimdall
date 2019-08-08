@@ -42,7 +42,7 @@ def add_source_wrapper(viewer, source):
                          multichannel=multichannel,
                          clim_range=[source.min_val, source.max_val])
     elif layer_type == 'labels':
-        viewer.add_labels(source.data, name=source.name)
+        viewer.add_labels(source, name=source.name)
 
 
 # TODO layer specific key-bindings
@@ -50,14 +50,15 @@ def add_source_to_viewer(viewer, source, reference_shape):
     if source.shape != reference_shape:
         raise RuntimeError("Shape of source %s does not match the reference shape %s" % (str(source.shape),
                                                                                          str(reference_shape)))
-    # default in-memory or big-data sources
-    if isinstance(source, (NumpySource, BigDataSource)):
-        add_source(viewer, source)
 
     # pyramid needs to be checked before BigDataSource,
     # because the former inherits from the latter
-    elif isinstance(source, PyramidSource):
+    if isinstance(source, PyramidSource):
         add_pyramid_source(viewer, source)
+
+    # default in-memory or big-data sources
+    elif isinstance(source, (NumpySource, BigDataSource)):
+        add_source(viewer, source)
 
     # source wrapper
     elif isinstance(source, SourceWrapper):

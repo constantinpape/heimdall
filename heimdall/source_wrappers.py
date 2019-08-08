@@ -1,6 +1,6 @@
 from abc import ABC
 import elf.wrapper
-from elf.util import normalize_index
+from elf.util import normalize_index, squeeze_singletons
 from .sources import Source, BigDataSource, PyramidSource
 
 
@@ -129,17 +129,17 @@ class RoiWrapper(SourceWrapper):
         return tuple(sto - sta for sta, sto in zip(self.roi_start, self.roi_stop))
 
     def __getitem__(self, key):
-        mapped_key = normalize_index(key, self.shape)
-        mapped_key = tuple(slice(k.start - rs, k.stop - rs)
+        mapped_key, to_squeeze = normalize_index(key, self.shape)
+        mapped_key = tuple(slice(k.start + rs, k.stop + rs)
                            for k, rs in zip(mapped_key, self.roi_start))
-        return self.source[mapped_key]
+        return squeeze_singletons(self.source[mapped_key], to_squeeze)
 
     # TODO
     def __setitem__(self, key, item):
         raise NotImplementedError
 
 
-def roi_wrapper_pyramid_factory(source, scale, roi_start=None, roi_stop=None):
+def roi_wrapper_pyramid_factory(source, scale, roi_start, roi_stop):
     """ Pyramid factory for the RoiWrapper.
 
     Use this by binding `roi_start` and `roi_stop` corresponding to level 0 with partial:
@@ -154,18 +154,11 @@ def roi_wrapper_pyramid_factory(source, scale, roi_start=None, roi_stop=None):
     Arguments:
         source [heimdall.Source] - source to be wraped
         scale [tuple[int]] - scale factor w.r.t. level 0
-        roi_start [tuple[int]] - start coordinates of roi (default: None)
-        roi_stop [tuple[int]] - stop coordinates of roi (default: None)
+        roi_start [tuple[int]] - start coordinates of roi
+        roi_stop [tuple[int]] - stop coordinates of roi
     """
-    # this is the shape at level 0, which is monkey patched into to every level's source
-    # before the wrapper function is called
-    shape_zero = source.shape_zero
-    roi_start = RoiWrapper.format_roi_start(roi_start, shape_zero)
     roi_start = tuple(rs // sc for rs, sc in zip(roi_start, scale))
-
-    roi_stop = RoiWrapper.format_roi_start(roi_stop, shape_zero)
     roi_stop = tuple(rs // sc for rs, sc in zip(roi_stop, scale))
-
     return RoiWrapper(source, roi_start, roi_stop)
 
 

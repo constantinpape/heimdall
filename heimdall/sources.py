@@ -272,15 +272,18 @@ class PyramidSource(BigDataSource):
             self._n_scales = n_scales
 
         # we need to set the wrapper factory to None before
-        # we can calculate the scale factors
+        # we can calculate the scale factors and call super
         self._wrapper_factory = None
         self._scales = self._init_scales()
-
-        if wrapper_factory and not callable(wrapper_factory):
-            raise ValueError("Invalid wrapper factory")
-        self._wrapper_factory = wrapper_factory
-
         super().__init__(self.get_level(0), **kwargs)
+
+        # check if we have a wrapper factory
+        if wrapper_factory is not None:
+            if not callable(wrapper_factory):
+                raise ValueError("Invalid wrapper factory")
+            self._wrapper_factory = wrapper_factory
+            # we need to override the init
+            super().__init__(self.get_level(0), **kwargs)
 
     def _init_scales(self):
         ref_shape = self.get_level(0).shape
@@ -330,8 +333,6 @@ class PyramidSource(BigDataSource):
         # wrap source in a big data source, so we can pass
         # it to the source wrapper
         source = BigDataSource(source)
-        # we monkey patch the level 0 shape here
-        source.shape_zero = self.shape
         # scale factor at the current level
         scale = self.scales[level]
 
