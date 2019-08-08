@@ -178,7 +178,7 @@ view(source)
 ```
 
 
-### Interact with napari
+### Interacting with napari
 
 `Heimdall` can be combined with `napari` in order to make use of additional functionality.
 For this use `view` with `return_viewer=True` and wrap the function call into `napari.gui_qt()`.
@@ -198,7 +198,7 @@ with napari.gui_qt():
     # We add an additional napary points layer.
     points = np.array([[64, 64, 64], [32, 64, 96]])
     sizes = np.array([10, 25])
-    viewer.add_points(points, size=size)
+    viewer.add_points(points, size=sizes)
 ```
 
 See `examples/` for additional usage examples.
