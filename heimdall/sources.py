@@ -43,11 +43,11 @@ def infer_pyramid_format(group):
             return None
 
     # check for knossos multiscale format
-    elif elf.io.is_knossos(group) and elf.io.is_group():
+    elif elf.io.is_knossos(group) and elf.io.is_group(group):
         try:
             # all names are prefixed with 'mag'
-            scales = [int(scale[3:]) for scale in scales]
-            is_consecutive(scales, 1)
+            scales = [int(scale[3:]) for scale in keys]
+            is_consecutive = check_consecutive(scales, 1)
             if is_consecutive:
                 return 'knossos'
             else:
