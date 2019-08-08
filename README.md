@@ -153,8 +153,8 @@ view(source)
 Source wrappers can be chained.
 
 They can also be applied to pyramids, however a `PyramidSource` cannot be wrapped into
-a `SourceWrapper` directly. Instead, the `PyramidSource` can be passed a factory function `factory(source, levle, scale)`,
-that needs to adjust the transformation to the individual scale level. For many `SourceWrappers`, this function is alrady implemented:
+a `SourceWrapper` directly. Instead, the `PyramidSource` can be passed a factory function `factory(source, level, scale)`,
+that needs to adjust the transformation to the individual scale level. For many source wrappers, this function is alrady implemented:
 
 ```python
 from functools import partial
