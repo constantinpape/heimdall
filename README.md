@@ -4,7 +4,7 @@ Python based viewer for large multi-dimensional datasets.
 
 Based on [napari](https://github.com/napari/napari) and inspired by [BigDataViewer](https://imagej.net/BigDataViewer).
 Can display datasets in memory or stored in [hdf5](https://www.hdfgroup.org/solutions/hdf5/),
-[bdv-format](https://imagej.net/BigDataViewer#Exporting_Datasets_for_the_BigDataViewer), [zarr](https://github.com/zarr-developers/zarr-python) or [n5](https://github.com/saalfeldlab/n5).
+[bdv-format](https://imagej.net/BigDataViewer#Exporting_Datasets_for_the_BigDataViewer), [zarr](https://github.com/zarr-developers/zarr-python), [n5](https://github.com/saalfeldlab/n5) or [knossos file format](https://github.com/adwanner/PyKNOSSOS).
 This is work in progress.
 
 
@@ -36,10 +36,10 @@ Coming soon ;).
 ## Usage
 
 `Heimdall` is a wrapper around `napari` that makes common visualisation tasks for large volumetric data more convenient.
-In particular, it supports visualizing data from `numpy` arrays and `hdf5` as well as `zarr/n5` datasets.
+In particular, it supports visualizing data from `numpy` arrays and `hdf5` as well as `zarr/n5` datasets and `knossos` files.
 It also supports some pyramid specifications for these file formats.
 
-The easisest way of use is through the convenience functions `view_arrays`, which displays a list of `numpy` arrays and `view_container`, which displays the content of a `hdf5` or `zarr/n5` file:
+It is the easiest to use it through the convenience functions `view_arrays`, which displays a list of `numpy` arrays and `view_container`, which displays the content of a `hdf5` or `zarr/n5` file:
 
 ```python
 import numpy as np
@@ -56,7 +56,7 @@ view_arrays([x, y])
 from heimdall import view_container
 path = '/path/to/file.h5'  # or .n5/.zarr
 # Display all 3d datasets in the container.
-# To exclude certain datasets, pass their names as list `exclude_names`.
+# To exclude selected datasets, pass their names as list `exclude_names`.
 # To only show selected datasets, pass their names as list `include_names`.
 view_container(path, ndim=3)
 ```
@@ -64,12 +64,12 @@ view_container(path, ndim=3)
 
 In order to use `heimdall` in a more flexible manner, use the function `view`.
 It can be called with `numpy` arrays as well as `z5py/h5py` datasets or groups (for pyramids).
-It also supports [`heimdall.sources`](ttps://github.com/constantinpape/heimdall/blob/master/heimdall/sources.py), which allow to customize the viewer further.
+It also supports [`heimdall.sources`](https://github.com/constantinpape/heimdall/blob/master/heimdall/sources.py), which allow to customize the viewer further.
 
 ```python
 import numpy as np
 import h5py
-from heimdall import viewer, to_source
+from heimdall import view, to_source
 
 shape = (128,) * 3
 x = np.random.rand(*shape)
@@ -89,7 +89,94 @@ with h5py.File(path, 'r') as f:
     view(x, y)
 ```
 
-### Source wrapper
+### Pyramid sources
+
+For now, `heimdall` supports three different multi-scale pyramid formats:
+- [bdv-hdf5](https://imagej.net/BigDataViewer#Exporting_Datasets_for_the_BigDataViewer)
+- [paintera-n5](https://imagej.net/BigDataViewer#Exporting_Datasets_for_the_BigDataViewe://github.com/saalfeldlab/paintera#raw)
+- [knossos](https://github.com/adwanner/PyKNOSSOS)
+
+You can load a pyramid, by passing the `z5py.Group` / `h5py.Group` or the corresponding knossos file to `view`,
+or wrapping it into a `PyramidSource` with `to_source` in order to specify further options.
+
+```python
+import h5py
+import z5py
+from heimdall import view, to_source
+
+f1 = z5py.File('/path/to/file.n5')
+# this needs to be a group containing an n5 pyramid
+pyramid1 = f1['n5-pyramid-group']
+
+# this needs to be a bdv hdf5 file
+with h5py.File('/path/to/file.h5', 'r') as f2:
+    # this is the pyramid for timepoint 0, channel 0 in the bdv format
+    pyramid2 = f2['t00000/s00']
+    # we wrap it into a source to specify further options
+    # (here: the maximum scale level to be loaded)
+    pyramid2 = to_source(pyramid2, n_scales=3)
+
+    # both pyramid data-sets need to have the same shape (at scale 0)
+    # note that we can call shape on pyramid2 directly, because this is exposed by 
+    # the `PyramidSource` 
+    asserrt pyramid1['s0'].shape == pyramid2.shape
+    view(pyramid1, pyramid2)
+```
+
+### Source wrappers
+
+`Heimdall` provides [several source wrappers](https://github.com/constantinpape/heimdall/blob/master/heimdall/source_wrappers.py) - classes that wrap a source and
+perform some tranformation on the fly.
+For example, the `RoiWrapper` only exposes a sub-region of the data to the viewer:
+
+```python
+import z5py
+from heimdall import view, to_source
+from heimdall.source_wrappers import RoiWrapper
+
+# load the dataset source we want to view
+ds = z5py.File('/path/to/file.n5')['some/name']
+# wrap it into a source (this is required in order to pass it to the wrapper)
+source = to_source(ds)
+
+# specify the roi (assuming this is 3d data with a matching shape!)
+roi_start = (0, 100, 150)
+roi_stop = (200, 250, 400)
+# wrap the source
+source = RoiWrapper(source, roi_start, roi_stop)
+print(source.shape)
+# (200, 150, 250)
+
+view(source)
+```
+
+Source wrappers can be chained.
+
+They can also be applied to pyramids, however a `PyramidSource` cannot be wrapped into
+a `SourceWrapper` directly. Instead, the `PyramidSource` can be passed a factory function `factory(source, levle, scale)`,
+that needs to adjust the transformation to the individual scale level. For many `SourceWrappers`, this function is alrady implemented:
+
+```python
+from functools import partial
+import z5py
+from heimdall import view, to_source
+from heimdall.source_wrappers import roi_wrapper_pyramid_factory
+
+# load the pyramid source we want to view
+g = z5py.File('/path/to/file.n5')['some/n5-pyramid']
+
+# construct the wrapper factory function,
+# the values for `roi_start` and `roi_stop` are specified with partial
+roi_start = (0, 100, 150)
+roi_stop = (200, 250, 400)
+factory = partial(roi_wrapper_pyramid_factory, roi_start=roi_start, roi_stop=roi_stop)
+
+# construct the source with wrapper factory
+source = to_source(g, wrapper_factory=factory)
+
+view(source)
+```
+
 
 ### Interact with napari
 

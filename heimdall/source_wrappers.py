@@ -86,6 +86,7 @@ class RoiWrapper(SourceWrapper):
         super().__init__(source)
         self._roi_start = self.format_roi_start(roi_start, source.shape)
         self._roi_stop = self.format_roi_stop(roi_stop, source.shape)
+        self._check_roi()
 
     @staticmethod
     def format_roi_start(roi_start, shape, perform_check=True):
@@ -101,6 +102,10 @@ class RoiWrapper(SourceWrapper):
             raise ValueError("Invalid roi stop")
         return roi_stop
 
+    def _check_roi(self):
+        if any(sta >= sto for sta, sto in zip(self.roi_start, self.roi_stop)):
+            raise ValueError("Invalid roi")
+
     @property
     def roi_start(self):
         return self._roi_start
@@ -108,6 +113,7 @@ class RoiWrapper(SourceWrapper):
     @roi_start.setter
     def roi_start(self, roi_start):
         self._roi_start = self.format_roi_start(roi_start)
+        self._check_roi()
 
     @property
     def roi_stop(self):
@@ -116,6 +122,7 @@ class RoiWrapper(SourceWrapper):
     @roi_stop.setter
     def roi_stop(self, roi_stop):
         self._roi_stop = self.format_roi_stop(roi_stop)
+        self._check_roi()
 
     @property
     def shape(self):
