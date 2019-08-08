@@ -1,10 +1,12 @@
+from abc import ABC
 import numpy as np
 import elf.io
 
 
-def check_consecutive(scales, expected_formatstart_id=0):
+def check_consecutive(scales, expected_start_id=0):
     scales = sorted(scales)
-    is_consecutive = (scales[0] == expected_start_id) and (scales == list(range(scales[0], scales[-1] + 1)))
+    is_consecutive = (scales[0] == expected_start_id) and\
+        (scales == list(range(scales[0], scales[-1] + 1)))
     return is_consecutive
 
 
@@ -57,32 +59,7 @@ def infer_pyramid_format(group):
     return None
 
 
-def to_source(data, **kwargs):
-    """ Convert the input data to a heimdall.Source.
-
-    Type of the source is inferred from the type of data.
-    """
-
-    # we might have a source already -> do nothing
-    if isinstance(data, Source):
-        return data
-    # source from in memory data
-    elif isinstance(data, np.ndarray):
-        return NumpySource(data, **kwargs)
-    # source from dataset
-    elif elf.io.is_dataset(data):
-        return BigDataSource(data, **kwargs)
-    # sources from n5/zarr or hdf5 (bdv) image pyramid
-    elif elf.io.is_group(data):
-        pyramid_format = infer_pyramid_format(data)
-        if pyramid_format is None:
-            raise ValueError("Group does not have one of the supported pyramid formats")
-        return PyramidSource(data, pyramid_format=pyramid_format, **kwargs)
-    else:
-        raise ValueError("No source for %s available" % type(data))
-
-
-class Source:
+class Source(ABC):
     """ Base class for data sources.
     """
 
@@ -96,7 +73,7 @@ class Source:
                            'int32': 'labels',
                            'int64': 'labels',
                            'float32': 'raw',
-                           'float64': 'labels'}
+                           'float64': 'raw'}
 
     def to_layer_type(self, layer_type, dtype):
         if layer_type is not None:
@@ -111,6 +88,14 @@ class Source:
         self._layer_type = self.to_layer_type(layer_type, data.dtype)
         self._name = name
         self._multichannel = multichannel
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    # TODO we should have an option to declare a source as mutable / immutable
+    # and disable setitem if appropriate
+    def __setitem__(self, key, item):
+        self.data[key] = item
 
     @property
     def data(self):
@@ -246,12 +231,26 @@ class KnossosSource(BigDataSource):
 class PyramidSource(BigDataSource):
     """ Source for pyramid dataset.
 
-    For now, we support the bdv mipmap and the n5 mipmap format used by paintera.
+    For now, we support the following fomrats:
+        - bdv mipmap (stored as h5)
+        - n5 mipmap format used by paintera
+        - pyknossos file
+
+    Arguments:
+        group [] - the root group of the pyramid store
+        pyramid_format [str] - the pyramid format,
+            will be infered fron `group` by default (default: None)
+        n_scales [int] - the number of available scale levels.
+            Set to the max number of scales by default (default: None)
+        n_threads [int] - number of threads used in z5py backends (default: 1)
+        wrapper_factory [callable] - factory for a wrapper function applied to each scale
+            (default: None)
     """
     supported_formats = ('n5', 'knossos', 'bdv')
 
     def __init__(self, group, pyramid_format=None,
-                 n_scales=None, n_threads=1, **kwargs):
+                 n_scales=None, n_threads=1, wrapper_factory=None,
+                 **kwargs):
         expected_format = infer_pyramid_format(group)
         if pyramid_format is None:
             if expected_format is None:
@@ -272,7 +271,30 @@ class PyramidSource(BigDataSource):
                 raise ValueError
             self._n_scales = n_scales
 
+        # we need to set the wrapper factory to None before
+        # we can calculate the scale factors
+        self._wrapper_factory = None
+        self._scales = self._init_scales()
+
+        if wrapper_factory and not callable(wrapper_factory):
+            raise ValueError("Invalid wrapper factory")
+        self._wrapper_factory = wrapper_factory
+
         super().__init__(self.get_level(0), **kwargs)
+
+    def _init_scales(self):
+        ref_shape = self.get_level(0).shape
+        ndim = len(ref_shape)
+        scales = [ndim * (1,)]
+        for level in range(1, self.n_scales):
+            shape = self.get_level(level).shape
+            scale = tuple(int(round(rsh / sh)) for rsh, sh in zip(ref_shape, shape))
+            scales.append(scale)
+        return scales
+
+    @property
+    def scales(self):
+        return self._scales
 
     @property
     def format(self):
@@ -300,17 +322,54 @@ class PyramidSource(BigDataSource):
     def n_threads(self, n_threads):
         self._n_threads = n_threads
 
+    def wrap(self, source, level):
+        factory = self._wrapper_factory
+        if factory is None:
+            return source
+
+        # wrap source in a big data source, so we can pass
+        # it to the source wrapper
+        source = BigDataSource(source)
+        # we monkey patch the level 0 shape here
+        source.shape_zero = self.shape
+        # scale factor at the current level
+        scale = self.scales[level]
+
+        # we allow different arguments for the wrapper factory:
+        # - factory(source, scale, level)
+        # - factory(source, scale)
+        # - factory(source, level)
+        # - factory(source)
+        try:
+            source = factory(source, scale=scale, level=level)
+            return source
+        except TypeError:
+            pass
+        try:
+            source = factory(source, scale=scale)
+            return source
+        except TypeError:
+            pass
+        try:
+            source = factory(source, level=level)
+            return source
+        except TypeError:
+            pass
+
+        source = factory(source)
+        return source
+
     def get_level(self, level):
         """ Load the dataset at given level
         """
         if self.format == 'n5':
-            ds = self.group['s%i' % level]
+            source = self.group['s%i' % level]
         elif self.format == 'bdv':
-            ds = self.group['%i/cells' % level]
+            source = self.group['%i/cells' % level]
         elif self.format == 'knossos':
-            ds = self.group['mag%i' % (level + 1)]
-        ds.n_threads = self.n_threads
-        return ds
+            source = self.group['mag%i' % (level + 1)]
+        source = self.wrap(source, level)
+        return source
 
     def get_pyramid(self):
         """ Load the pyramid in format expected by napari.add_pyramid
