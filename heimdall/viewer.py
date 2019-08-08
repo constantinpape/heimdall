@@ -110,7 +110,7 @@ def view_arrays(data, labels=None, layer_types=None):
 def view_container(path, ndim=3,
                    exclude_names=None, include_names=None,
                    load_into_memory=False, n_threads=1):
-    """ Display contents of hdf5 or n5/zarr file.
+    """ Display contents of hdf5, n5/zarr or knossos file.
 
     Arguments:
         path [str]: path to the file
@@ -124,11 +124,14 @@ def view_container(path, ndim=3,
     """
     assert not ((exclude_names is not None) and (include_names is not None))
     with elf.io.open_file(path, mode='r') as f:
-        sources = load_sources_from_file(f, reference_ndim=ndim,
-                                         exclude_names=exclude_names,
-                                         include_names=include_names,
-                                         load_into_memory=load_into_memory,
-                                         n_threads=n_threads)
+        if elf.io.is_knossos(f):
+            sources = [to_source(f, n_threads=n_threads)]
+        else:
+            sources = load_sources_from_file(f, reference_ndim=ndim,
+                                             exclude_names=exclude_names,
+                                             include_names=include_names,
+                                             load_into_memory=load_into_memory,
+                                             n_threads=n_threads)
         view(*sources)
 
 
