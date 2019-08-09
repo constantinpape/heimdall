@@ -6,7 +6,7 @@ import elf.io
 from .sources import Source, NumpySource, BigDataSource, PyramidSource
 from .sources import infer_pyramid_format
 from .source_wrappers import SourceWrapper
-from .util import add_source_to_viewer, add_keybindings
+from .util import add_source_to_viewer, add_keybindings, normalize_shape
 
 
 def to_source(data, **kwargs):
@@ -49,7 +49,7 @@ def view(*sources, return_viewer=False):
             (default: False)
     """
     viewer_sources = [to_source(source) for source in sources]
-    reference_shape = viewer_sources[0].shape
+    reference_shape = normalize_shape(viewer_sources[0])
 
     if return_viewer:
         viewer = napari.Viewer(title='Heimdall')

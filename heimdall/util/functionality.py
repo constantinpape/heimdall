@@ -56,11 +56,20 @@ def add_source_wrapper(viewer, source):
     layer.scale = source.scale[::-1]
 
 
+def normalize_shape(source):
+    return tuple(sh * sc for sh, sc in zip(source.shape, source.scale))
+
+
+def check_shapes(source, reference_shape):
+    shape = normalize_shape(source)
+    if shape != reference_shape:
+        raise RuntimeError("Shape of source %s does not match the reference shape %s" % (str(shape),
+                                                                                         str(reference_shape)))
+
+
 # TODO layer specific key-bindings
 def add_source_to_viewer(viewer, source, reference_shape):
-    if source.shape != reference_shape:
-        raise RuntimeError("Shape of source %s does not match the reference shape %s" % (str(source.shape),
-                                                                                         str(reference_shape)))
+    check_shapes(source, reference_shape)
 
     # pyramid needs to be checked before BigDataSource,
     # because the former inherits from the latter
