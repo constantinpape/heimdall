@@ -11,10 +11,13 @@ def add_source(viewer, source):
         else [source.min_val, source.max_val]
 
     if layer_type == 'raw':
-        viewer.add_image(source.data, name=source.name,
-                         multichannel=multichannel, clim_range=clim_range)
+        layer = viewer.add_image(source.data, name=source.name,
+                                 multichannel=multichannel, clim_range=clim_range)
     elif layer_type == 'labels':
-        viewer.add_labels(source.data, name=source.name)
+        layer = viewer.add_labels(source.data, name=source.name)
+    # For now, the scale needs to be reversed, see
+    # https://github.com/napari/napari/issues/436
+    layer.scale = source.scale[::-1]
 
 
 def add_pyramid_source(viewer, source):
@@ -25,9 +28,14 @@ def add_pyramid_source(viewer, source):
         pyramid = source.get_pyramid()
         viewer.add_pyramid(pyramid, multichannel=multichannel,
                            clim_range=[source.min_val, source.max_val])
-    # TODO does napari support label pyramids already?
+        # layer = viewer.add_pyramid(pyramid, multichannel=multichannel,
+        #                            clim_range=[source.min_val, source.max_val])
+    # does napari support label pyramids already?
     elif layer_type == 'labels':
         raise NotImplementedError
+    # I don't think the scale of the pyramid layer can be set yet, see
+    # https://github.com/napari/napari/issues/436
+    # layer.scale = source.scale[::-1]
 
 
 def add_source_wrapper(viewer, source):
@@ -38,11 +46,14 @@ def add_source_wrapper(viewer, source):
         raise NotImplementedError
 
     if layer_type == 'raw':
-        viewer.add_image(source, name=source.name,
-                         multichannel=multichannel,
-                         clim_range=[source.min_val, source.max_val])
+        layer = viewer.add_image(source, name=source.name,
+                                 multichannel=multichannel,
+                                 clim_range=[source.min_val, source.max_val])
     elif layer_type == 'labels':
-        viewer.add_labels(source, name=source.name)
+        layer = viewer.add_labels(source, name=source.name)
+    # For now, the scale needs to be reversed, see
+    # https://github.com/napari/napari/issues/436
+    layer.scale = source.scale[::-1]
 
 
 # TODO layer specific key-bindings

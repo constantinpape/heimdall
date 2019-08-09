@@ -63,6 +63,10 @@ class SourceWrapper(ABC):
     def dtype(self):
         return self.source.dtype
 
+    @property
+    def scale(self):
+        return self.source.scale
+
     def __getitem__(self, key):
         return self.source[key]
 
@@ -162,7 +166,9 @@ def roi_wrapper_pyramid_factory(source, scale, roi_start, roi_stop):
     return RoiWrapper(source, roi_start, roi_stop)
 
 
-# TODO check if we even need this or if napari supports this out of the box already
+# This wrapper might be unnecessary, because napari supports setting the
+# scale of a layer via `layer.scale`.
+# TODO validate the napari scale functionality and decide whether to remove this class
 class ResizeWrapper(SourceWrapper):
     """ Wraper to resize the source on the fly.
     """

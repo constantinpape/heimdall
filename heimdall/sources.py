@@ -83,11 +83,24 @@ class Source(ABC):
         else:
             return self.default_layer_types[str(dtype)]
 
-    def __init__(self, data, layer_type=None, name=None, multichannel=False):
+    def to_scale(self, scale):
+        if scale is None:
+            return (1,) * self.ndim
+        if isinstance(scale, int):
+            return (scale,) * self.ndim
+        elif isinstance(scale, (tuple, list)):
+            if len(scale) != self.ndim:
+                raise ValueError("Invalid length of scale value, expected %i, got %i" % (len(scale),
+                                                                                         self.ndim))
+            return tuple(scale)
+        raise ValueError("Invald type of scale, expected one of (int, tuple, list), got %s" % type(scale))
+
+    def __init__(self, data, layer_type=None, name=None, multichannel=False, scale=None):
         self._data = data
         self._layer_type = self.to_layer_type(layer_type, data.dtype)
         self._name = name
         self._multichannel = multichannel
+        self._scale = self.to_scale(scale)
 
     def __getitem__(self, key):
         return self.data[key]
@@ -96,6 +109,14 @@ class Source(ABC):
     # and disable setitem if appropriate
     def __setitem__(self, key, item):
         self.data[key] = item
+
+    @property
+    def scale(self):
+        return self._scale
+
+    @scale.setter
+    def scale(self, scale):
+        self.scale = self.to_scale(scale)
 
     @property
     def data(self):
