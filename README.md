@@ -95,6 +95,7 @@ For now, `heimdall` supports three different multi-scale pyramid formats:
 - [bdv-hdf5](https://imagej.net/BigDataViewer#Exporting_Datasets_for_the_BigDataViewer)
 - [paintera-n5](https://imagej.net/BigDataViewer#Exporting_Datasets_for_the_BigDataViewe://github.com/saalfeldlab/paintera#raw)
 - [knossos](https://github.com/adwanner/PyKNOSSOS)
+- [imaris-hdf5](http://open.bitplane.com/Default.aspx?tabid=268)
 
 You can load a pyramid, by passing the `z5py.Group` / `h5py.Group` or the corresponding knossos file to `view`,
 or wrapping it into a `PyramidSource` with `to_source` in order to specify further options.

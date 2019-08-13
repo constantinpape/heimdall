@@ -10,10 +10,28 @@ def check_consecutive(scales, expected_start_id=0):
     return is_consecutive
 
 
+def is_bdv(keys):
+    try:
+        scales = [int(scale) for scale in keys]
+        is_consecutive = check_consecutive(scales)
+        return is_consecutive
+    except Exception:
+        return False
+
+
+def is_imaris(keys):
+    try:
+        scales = [int(scale.split(' ')[1]) for scale in keys]
+        is_consecutive = check_consecutive(scales)
+        return is_consecutive
+    except Exception:
+        return False
+
+
 def infer_pyramid_format(group):
     """ Infer pyramid format from group object.
 
-    Checks for bdv multiscale format (hdf5) or format used by paintera (n5).
+    Checks for bdv / imaris multiscale format (hdf5) or format used by paintera (n5).
     Returns None if no format could be inferred.
     """
     keys = list(group.keys())
@@ -32,14 +50,11 @@ def infer_pyramid_format(group):
 
     # check for bdv multiscale format
     elif elf.io.is_h5py(group) and elf.io.is_group(group):
-        try:
-            scales = [int(scale) for scale in keys]
-            is_consecutive = check_consecutive(scales)
-            if is_consecutive:
-                return 'bdv'
-            else:
-                return None
-        except Exception:
+        if is_bdv(keys):
+            return 'bdv'
+        elif is_imaris(keys):
+            return 'imaris'
+        else:
             return None
 
     # check for knossos multiscale format
@@ -254,6 +269,7 @@ class PyramidSource(BigDataSource):
 
     For now, we support the following fomrats:
         - bdv mipmap (stored as h5)
+        - imaris format (stored as h5)
         - n5 mipmap format used by paintera
         - pyknossos file
 
@@ -267,7 +283,7 @@ class PyramidSource(BigDataSource):
         wrapper_factory [callable] - factory for a wrapper function applied to each scale
             (default: None)
     """
-    supported_formats = ('n5', 'knossos', 'bdv')
+    supported_formats = ('n5', 'knossos', 'bdv', 'imaris')
 
     def __init__(self, group, pyramid_format=None,
                  n_scales=None, n_threads=1, wrapper_factory=None,
@@ -390,6 +406,10 @@ class PyramidSource(BigDataSource):
             source = self.group['%i/cells' % level]
         elif self.format == 'knossos':
             source = self.group['mag%i' % (level + 1)]
+        elif self.format == 'imaris':
+            # We don't support multi-channel / multi-time point
+            # but should expose it somehow
+            source = self.group['ResolutionLevel %i/TimePoint 0/Channel 0/Data' % level]
         source = self.wrap(source, level)
         return source
 
