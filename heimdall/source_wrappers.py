@@ -78,9 +78,9 @@ class SourceWrapper(ABC):
 # source wrappers:
 # - roi
 # - resize on the fly
+# - data caching (WIP)
 # TODO
 # - apply affines on the fly
-# - data caching
 
 
 class RoiWrapper(SourceWrapper):
@@ -195,4 +195,46 @@ class AffineWrapper(SourceWrapper):
 
 
 class CacheWrapper(SourceWrapper):
-    pass
+    """ Wrapper to cache the underlying data source.
+
+    To speed up visualisation of out-of-core sources based
+    on hd5f, zarr, n5 etc. Work in progress.
+    """
+    cache_replacement_strategies = ('FIFO',)
+
+    def __init__(self, source, max_cache_size, chunks=None,
+                 cache_replacement_strategy='FIFO', compression=None):
+        if cache_replacement_strategy not in self.cache_replacement_strategies:
+            raise ValueError("Invalid cache replacement strategy %s" % cache_replacement_strategy)
+        super().__init__(source)
+        # select cache based on cache_replacement_strategy once we have moe options
+        internal_cache = elf.wrapper.FIFOCache(max_cache_size, compression)
+        self._cache = elf.wrapper.CachedVolume(source, internal_cache, chunks)
+
+    def __getitem__(self, key):
+        return self._cache[key]
+
+
+# TODO allow specifying different values and disabling the
+# cache for different levels in the pyramid
+def cache_wrapper_pyramid_factory(source, scale, max_cache_size, chunks=None,
+                                  cache_replacement_strategy='FIFO', compression=None):
+    """ Pyramid factory for the CacheWrapper.
+
+    Use this by binding `max_cache_size` and other optional arguments with partial:
+    ```
+    max_cache_size = 100
+    factory = partial(cache_wrapper_pyramid_factory, max_cache_size=max_cache_size)
+    pyramid_source = PyramidSource(..., wrapper_factory=factory)
+    ```
+
+    Arguments:
+        source [heimdall.Source] - source to be wraped
+        scale [tuple[int]] - scale factor w.r.t. level 0
+        max_cache_size [int] -
+        chunks [tuple] -
+        cache_replacement_strategy [str] -
+        compression [str] -
+    """
+    return CacheWrapper(source, max_cache_size, chunks,
+                        cache_replacement_strategy, compression)
