@@ -4,7 +4,8 @@ from heimdall import view, to_source
 from heimdall.source_wrappers import RoiWrapper, roi_wrapper_pyramid_factory
 
 
-# FIXME this fails with out-of-range
+# this fails with out-of-range due to
+# https://github.com/napari/napari/issues/699
 def example():
     path = '/home/pape/Work/data/cremi/example/sampleA.n5'
     f = z5py.File(path)
