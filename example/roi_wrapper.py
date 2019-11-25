@@ -4,6 +4,7 @@ from heimdall import view, to_source
 from heimdall.source_wrappers import RoiWrapper, roi_wrapper_pyramid_factory
 
 
+# FIXME this fails with out-of-range
 def example():
     path = '/home/pape/Work/data/cremi/example/sampleA.n5'
     f = z5py.File(path)
@@ -19,7 +20,7 @@ def example():
 
     # label source
     labels = f['volumes/segmentation/groundtruth']
-    label_source = RoiWrapper(to_source(labels), roi_start, roi_stop, name='labels')
+    label_source = RoiWrapper(to_source(labels, name='labels'), roi_start, roi_stop)
 
     view(raw_source, label_source)
 

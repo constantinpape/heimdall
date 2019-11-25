@@ -161,15 +161,15 @@ def load_sources_from_file(f, reference_ndim,
 
         if elf.io.is_dataset(node):
             # check if this is in the exclude_names
-            if exclude_names is not None:
-                if name in exclude_names:
-                    return
+            if exclude_names and name in exclude_names:
+                return
 
             # check if this is in the include_names
-            if include_names is not None:
-                if name not in include_names:
-                    return
+            if include_names and name not in include_names:
+                return
 
+            # TODO it would be better to not visit the children in a pyramid group,
+            # but I am not quite sure how to do this with the h5py(like) visitor pattern
             # check if this is a dataset of a pyramid group
             # and don't load if it is
             if is_pyramid_ds(name, node):
@@ -183,19 +183,21 @@ def load_sources_from_file(f, reference_ndim,
 
             # check the number of dimensions against the reference dimensionality
             ndim = node.ndim
-            multichannel = False
+            channel_axis = None
             if ndim == reference_ndim + 1:
-                multichannel = True
+                # channel axis is hard-coded to 0 for now
+                channel_axis = 0
             elif ndim != reference_ndim:
                 return
 
-            sources.append(to_source(node, multichannel=multichannel))
+            print("Appending dataset source")
+            sources.append(to_source(node, channel_axis=channel_axis, name=name))
 
         elif elf.io.is_group(node):
             pyramid_format = infer_pyramid_format(node)
             if pyramid_format is not None:
-                sources.append(to_source(node, pyramid_format=pyramid_format,
-                                         multichannel=multichannel))
+                # TODO infer the channel axis
+                sources.append(to_source(node, name=name, pyramid_format=pyramid_format))
 
     f.visititems(visitor)
     return sources

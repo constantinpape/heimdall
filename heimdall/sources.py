@@ -74,6 +74,7 @@ def infer_pyramid_format(group):
     return None
 
 
+# TODO add 'rgb' attribute
 class Source(ABC):
     """ Base class for data sources.
     """
@@ -110,11 +111,13 @@ class Source(ABC):
             return tuple(scale)
         raise ValueError("Invald type of scale, expected one of (int, tuple, list), got %s" % type(scale))
 
-    def __init__(self, data, layer_type=None, name=None, multichannel=False, scale=None):
+    def __init__(self, data, layer_type=None, name=None,
+                 channel_axis=None, scale=None, split_channels=False):
         self._data = data
         self._layer_type = self.to_layer_type(layer_type, data.dtype)
         self._name = name
-        self._multichannel = multichannel
+        self._channel_axis = channel_axis
+        self._split_channels = split_channels
         self._scale = self.to_scale(scale)
 
     def __getitem__(self, key):
@@ -139,20 +142,24 @@ class Source(ABC):
 
     @property
     def ndim(self):
-        return self._data.ndim - 1 if self.multichannel else self._data.ndim
+        return self._data.ndim - 1 if self.channel_axis else self._data.ndim
 
     # maybe we should also support channel dim last, but I don't know how napari deals with this
     @property
     def shape(self):
-        return self._data.shape[1:] if self.multichannel else self._data.shape
+        return self._data.shape[1:] if self.channel_axis else self._data.shape
 
     @property
     def dtype(self):
         return self._data.dtype
 
     @property
-    def multichannel(self):
-        return self._multichannel
+    def channel_axis(self):
+        return self._channel_axis
+
+    @property
+    def split_channels(self):
+        return self._split_channels
 
     @property
     def layer_type(self):
@@ -414,7 +421,7 @@ class PyramidSource(BigDataSource):
         return source
 
     def get_pyramid(self):
-        """ Load the pyramid in format expected by napari.add_pyramid
+        """ Load the pyramid in format expected by napari.add_image(is_pyramid=True)
         """
         pyramid = [self.get_level(scale) for scale in range(self.n_scales)]
         # we load the last pyramid level into memory,
