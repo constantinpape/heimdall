@@ -1,4 +1,4 @@
-from ..sources import NumpySource, BigDataSource, PyramidSource
+from ..sources import NumpySource, BigDataSource, PyramidSource, TorchSource
 from ..source_wrappers import SourceWrapper
 
 
@@ -17,7 +17,7 @@ def add_source(viewer, source, is_pyramid):
     if channel_axis is not None and not split_channels:
         channel_axis = None
 
-    contrast_limits = None if isinstance(source, NumpySource)\
+    contrast_limits = None if isinstance(source, (NumpySource, TorchSource))\
         else [source.min_val, source.max_val]
 
     if layer_type == 'raw':
@@ -72,7 +72,7 @@ def add_source_to_viewer(viewer, source, reference_shape):
         add_source(viewer, source, is_pyramid=True)
 
     # default in-memory or big-data sources
-    elif isinstance(source, (NumpySource, BigDataSource)):
+    elif isinstance(source, (NumpySource, BigDataSource, TorchSource)):
         add_source(viewer, source, is_pyramid=False)
 
     # source wrapper

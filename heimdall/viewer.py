@@ -2,8 +2,12 @@ import os
 import numpy as np
 import napari
 import elf.io
+try:
+    import torch
+except ImportError:
+    torch = None
 
-from .sources import Source, NumpySource, BigDataSource, PyramidSource
+from .sources import Source, NumpySource, BigDataSource, PyramidSource, TorchSource
 from .sources import infer_pyramid_format
 from .source_wrappers import SourceWrapper
 from .util import add_source_to_viewer, add_keybindings, normalize_shape
@@ -18,9 +22,11 @@ def to_source(data, **kwargs):
     # we might have a source or source wrapper already -> do nothing
     if isinstance(data, (Source, SourceWrapper)):
         return data
-    # source from in memory data
+    # source from in memory numpy array
     elif isinstance(data, np.ndarray):
         return NumpySource(data, **kwargs)
+    elif torch is not None and torch.is_tensor(data):
+        return TorchSource(data, **kwargs)
     # source from dataset
     elif elf.io.is_dataset(data):
         return BigDataSource(data, **kwargs)

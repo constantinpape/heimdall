@@ -1,6 +1,10 @@
 from abc import ABC
 import numpy as np
 import elf.io
+try:
+    import torch
+except ImportError:
+    torch = None
 
 
 def check_consecutive(scales, expected_start_id=0):
@@ -187,6 +191,19 @@ class NumpySource(Source):
     def __init__(self, data, **kwargs):
         if not isinstance(data, np.ndarray):
             raise ValueError("NumpySource expecsts a numpy array, not %s" % type(data))
+        super().__init__(data, **kwargs)
+
+
+class TorchSource(Source):
+    """ Source from torch tensor.
+    """
+    def __init__(self, data, **kwargs):
+        assert torch is not None, "Need torch to support torch tensor source"
+        if not torch.is_tensor(data):
+            raise ValueError("TorchSource expecsts a torch tensor, not %s" % type(data))
+        # bring the data to the cpu and squeeze the potential singleton
+        # in the batch axis
+        data = data.detach().cpu().numpy().squeeze(0)
         super().__init__(data, **kwargs)
 
 
