@@ -1,63 +1,58 @@
-from ..sources import NumpySource, BigDataSource, PyramidSource
+from ..sources import NumpySource, BigDataSource, PyramidSource, TorchSource
 from ..source_wrappers import SourceWrapper
 
 
 # TODO more layer customizations
-def add_source(viewer, source):
+def add_source(viewer, source, is_pyramid):
     layer_type = source.layer_type
-    multichannel = source.multichannel
 
-    clim_range = None if isinstance(source, NumpySource)\
+    # the napari behaviour for multi-channel data has changed recently:
+    # if we set a channel axis, all channels will be added as separate layers
+    # this might not be the intended when using heimdall, so the source has
+    # an attribute 'split_channels'. If set to 'False', it will restore the old
+    # behaviour, where the channel is just added as extra dimension while still
+    # being consistent with heimdall shape checks
+    channel_axis = source.channel_axis
+    split_channels = source.split_channels
+    if channel_axis is not None and not split_channels:
+        channel_axis = None
+
+    contrast_limits = None if isinstance(source, (NumpySource, TorchSource))\
         else [source.min_val, source.max_val]
 
     if layer_type == 'raw':
-        layer = viewer.add_image(source.data, name=source.name,
-                                 multichannel=multichannel, clim_range=clim_range)
+        viewer.add_image(source.data, name=source.name, scale=source.scale,
+                         channel_axis=channel_axis, contrast_limits=contrast_limits,
+                         is_pyramid=is_pyramid)
     elif layer_type == 'labels':
-        layer = viewer.add_labels(source.data, name=source.name)
-    # For now, the scale needs to be reversed, see
-    # https://github.com/napari/napari/issues/436
-    layer.scale = source.scale[::-1]
+        viewer.add_labels(source.data, name=source.name,
+                          scale=source.scale, is_pyramid=is_pyramid)
 
 
-def add_pyramid_source(viewer, source):
-    layer_type = source.layer_type
-    multichannel = source.multichannel
-
-    if layer_type == 'raw':
-        pyramid = source.get_pyramid()
-        viewer.add_pyramid(pyramid, multichannel=multichannel,
-                           clim_range=[source.min_val, source.max_val])
-        # layer = viewer.add_pyramid(pyramid, multichannel=multichannel,
-        #                            clim_range=[source.min_val, source.max_val])
-    # does napari support label pyramids already?
-    elif layer_type == 'labels':
-        raise NotImplementedError
-    # I don't think the scale of the pyramid layer can be set yet, see
-    # https://github.com/napari/napari/issues/436
-    # layer.scale = source.scale[::-1]
-
-
+# TODO we can unify this with add_source as well
 def add_source_wrapper(viewer, source):
     layer_type = source.layer_type
-    multichannel = source.multichannel
+    channel_axis = source.channel_axis
     # TODO implement multi-channel support for source wrapper
-    if multichannel:
+    if channel_axis:
         raise NotImplementedError
 
     if layer_type == 'raw':
-        layer = viewer.add_image(source, name=source.name,
-                                 multichannel=multichannel,
-                                 clim_range=[source.min_val, source.max_val])
+        viewer.add_image(source, name=source.name,
+                         channel_axis=channel_axis, scale=source.scale,
+                         contrast_limits=[source.min_val, source.max_val],
+                         is_pyramid=False)
     elif layer_type == 'labels':
-        layer = viewer.add_labels(source, name=source.name)
-    # For now, the scale needs to be reversed, see
-    # https://github.com/napari/napari/issues/436
-    layer.scale = source.scale[::-1]
+        viewer.add_labels(source, name=source.name, is_pyramid=False,
+                          scale=source.scale)
 
 
 def normalize_shape(source):
-    return tuple(sh * sc for sh, sc in zip(source.shape, source.scale))
+    shape = source.shape
+    # TODO don't hard-code channel axis to 0
+    if source.channel_axis is not None:
+        shape = shape[1:]
+    return tuple(sh * sc for sh, sc in zip(shape, source.scale))
 
 
 def check_shapes(source, reference_shape):
@@ -74,11 +69,11 @@ def add_source_to_viewer(viewer, source, reference_shape):
     # pyramid needs to be checked before BigDataSource,
     # because the former inherits from the latter
     if isinstance(source, PyramidSource):
-        add_pyramid_source(viewer, source)
+        add_source(viewer, source, is_pyramid=True)
 
     # default in-memory or big-data sources
-    elif isinstance(source, (NumpySource, BigDataSource)):
-        add_source(viewer, source)
+    elif isinstance(source, (NumpySource, BigDataSource, TorchSource)):
+        add_source(viewer, source, is_pyramid=False)
 
     # source wrapper
     elif isinstance(source, SourceWrapper):

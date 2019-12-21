@@ -2,6 +2,8 @@ import z5py
 from heimdall import view
 
 
+# this fails with out-of-range due to
+# https://github.com/napari/napari/issues/699
 def example():
     path = '/home/pape/Work/data/cremi/example/sampleA.n5'
     with z5py.File(path) as f:

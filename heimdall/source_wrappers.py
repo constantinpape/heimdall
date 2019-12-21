@@ -48,8 +48,8 @@ class SourceWrapper(ABC):
         return self.source.layer_type
 
     @property
-    def multichannel(self):
-        return self.source.multichannel
+    def channel_axis(self):
+        return self.source.channel_axis
 
     @property
     def ndim(self):
@@ -173,7 +173,7 @@ class ResizeWrapper(SourceWrapper):
     """ Wraper to resize the source on the fly.
     """
     def __init__(self, source, shape, order=0):
-        if source.multichannel:
+        if source.channel_axis:
             raise NotImplementedError
         super().__init__(source)
         self._resized = elf.wrapper.ResizedVolume(source, shape, order)

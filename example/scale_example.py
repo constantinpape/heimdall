@@ -2,6 +2,7 @@ import z5py
 from heimdall import view, to_source
 
 
+# FIXME this fails with out of range
 def example():
     path = '/home/pape/Work/data/cremi/example/sampleA.n5'
     with z5py.File(path) as f:
