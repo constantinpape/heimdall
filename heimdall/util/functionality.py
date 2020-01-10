@@ -49,9 +49,6 @@ def add_source_wrapper(viewer, source):
 
 def normalize_shape(source):
     shape = source.shape
-    # TODO don't hard-code channel axis to 0
-    if source.channel_axis is not None:
-        shape = shape[1:]
     return tuple(sh * sc for sh, sc in zip(shape, source.scale))
 
 

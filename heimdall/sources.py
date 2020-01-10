@@ -79,6 +79,7 @@ def infer_pyramid_format(group):
 
 
 # TODO add 'rgb' attribute
+# TODO support non-zero channel axis
 class Source(ABC):
     """ Base class for data sources.
     """
@@ -121,6 +122,8 @@ class Source(ABC):
         self._layer_type = self.to_layer_type(layer_type, data.dtype)
         self._name = name
         self._channel_axis = channel_axis
+        if channel_axis is not None and channel_axis != 0:
+            raise NotImplementedError("Only support channel axis 0")
         self._split_channels = split_channels
         self._scale = self.to_scale(scale)
 
@@ -146,12 +149,11 @@ class Source(ABC):
 
     @property
     def ndim(self):
-        return self._data.ndim - 1 if self.channel_axis else self._data.ndim
+        return self._data.ndim - 1 if self.channel_axis is not None else self._data.ndim
 
-    # maybe we should also support channel dim last, but I don't know how napari deals with this
     @property
     def shape(self):
-        return self._data.shape[1:] if self.channel_axis else self._data.shape
+        return self._data.shape[1:] if self.channel_axis is not None else self._data.shape
 
     @property
     def dtype(self):
