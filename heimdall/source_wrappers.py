@@ -1,5 +1,6 @@
 from abc import ABC
 import elf.wrapper
+from elf.wrapper.affine_volume import AffineVolume
 from elf.util import normalize_index, squeeze_singletons
 from .sources import Source, BigDataSource, PyramidSource
 
@@ -173,7 +174,7 @@ class ResizeWrapper(SourceWrapper):
     """ Wraper to resize the source on the fly.
     """
     def __init__(self, source, shape, order=0):
-        if source.channel_axis:
+        if source.channel_axis is not None:
             raise NotImplementedError
         super().__init__(source)
         self._resized = elf.wrapper.ResizedVolume(source, shape, order)
@@ -190,8 +191,25 @@ class ResizeWrapper(SourceWrapper):
         raise NotImplementedError
 
 
+# TODO implement proper API to update the affine matrix
 class AffineWrapper(SourceWrapper):
-    pass
+    def __init__(self, source, matrix, shape=None, order=0, sigma=None):
+        if source.channel_axis is not None:
+            raise NotImplementedError
+        super().__init__(source)
+        self._affine = AffineVolume(source, affine_matrix=matrix,
+                                    shape=shape, order=order, sigma=sigma)
+
+    @property
+    def shape(self):
+        return self._affine.shape
+
+    def __getitem__(self, key):
+        return self._affine[key]
+
+    # TODO disable setitem for immutable sources (once we have them)
+    def __setitem__(self, key, item):
+        raise NotImplementedError
 
 
 class CacheWrapper(SourceWrapper):
